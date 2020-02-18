@@ -6,10 +6,10 @@ An event handler based off of the standard DOM event chain, but for TBJSON annot
 
 ## Format
 
-Typed Binary JSON provides a way to describe structured data.
-This package follows the TBJSON scheme and provides a way to listen to events (changes) in the structured data.
-The typical use case for this package is needing to listen for a change in a complicated tree structure while being performance minded.
-All of your classes must derive from the Handler Class.
+Typed Binary JSON provides a way to describe structured data.  
+This package follows the TBJSON scheme and provides a way to listen to events (changes) in the structured data.  
+The typical use case for this package is needing to listen for a change in a complicated tree structure while being performance minded.  
+All of your classes must derive from the Handler Class.  
 It is best to have a base `Model` class that inherits from `TbjsonHandler` so that you can add common functionality there.
 
 ### Working Example
