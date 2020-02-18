@@ -47,7 +47,7 @@ A.modelType = 'A';
 A.tbjson = {
 
 	// by default all properties in the definition below are listened to, set a property to false here to omit one
-	handler: {
+	handles: {
 		z: false // do not listen to z
 	},
 
@@ -102,7 +102,7 @@ c.b.a.addZ(new A()); // console will print a TbjsonHandlerEvent (below)
 
 ## Methods
 
-All classes that inherit from `Handler` (the default and only export of this package) will have the following methods:
+All classes that inherit from `TbjsonHandler` (the default and only export of this package) will have the following methods:
 
 ### inject(parentHandler) => undefined
 
@@ -131,7 +131,7 @@ Use these decorators to control how events will be handled.
 
 Fire an event everytime this function is called and also inject `this` into the first argument passed into the function (`inject()` will be called on the passed object).
 
-### @Handler.injectType(type, argNum)
+### @Handler.injectType(type, objArgIndex)
 
 Same as above but also provide a type (string) and optionally an argument number as to which argument needs injection.
 Type will be a field on the event object that bubbled up.

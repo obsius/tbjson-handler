@@ -9,6 +9,11 @@ const LISTENERS = Symbol('[tbjson-handler] listeners');
 
 let nextListenerId = 0;
 
+/**
+ * TbjsonHandler
+ * 
+ * An event handler for TBJSON annotated classes.
+ */
 export default class TbjsonHandler {
 
 	[HANDLER] = true;
@@ -33,14 +38,30 @@ export default class TbjsonHandler {
 		}
 	}
 
+	/**
+	 * Inject a parent handler into this. Recursively adds to all appropriate children.
+	 * 
+	 * @param { TbjsonHandler } parentHandler - the parent handler to inject
+	 */
 	inject(parentHandler) {
 
 		this[PARENT_HANDLER] = parentHandler;
 
 		// search tbjson types
 		let definition = Tbjson.definition(this);
+		let handles = fetchHandles(this);
 
 		for (let key in definition) {
+
+			// ignore handles explictly set to false
+			if (handles && handles[key] === false) {
+				continue;
+			}
+
+			// ignore typed arrays
+			if (ArrayBuffer.isView(this[key])) {
+				continue;
+			}
 
 			// must be an object
 			if (this[key] && typeof this[key] == 'object') {
@@ -57,6 +78,12 @@ export default class TbjsonHandler {
 		}
 	}
 
+	/**
+	 * Handle an event by dispatching to listerners and forwarding up the tree.
+	 * 
+	 * @param { TbjsonHandlerEvent } e - source event
+	 * @param { boolean } [local] - do not add this to the event path
+	 */
 	handle(e, local = false) {
 
 		// only handle if a parent handler is prenset
@@ -66,6 +93,7 @@ export default class TbjsonHandler {
 				e = new TbjsonHandlerEvent(this);
 			} else if (!local) {
 				e.path.push(this.modelType);
+				e.objs.push(this);
 			}
 
 			// trigger props
@@ -101,6 +129,14 @@ export default class TbjsonHandler {
 		}
 	}
 
+	/**
+	 * Add a listener.
+	 * Returns a destroyer function to unbind.
+	 * 
+	 * @param { string | []string | function } [nameOrArrayOrFilterFn] - string / array of strings / function to match the event
+	 * @param { string | []string } [propertyNameOrArray] - string / array of strings to match a property
+	 * @param { function } propertyNameOrArray - function to call when the matched event is found
+	 */
 	listen(nameOrArrayOrFilterFn, propertyNameOrArray, fn) {
 
 		// error
@@ -198,7 +234,13 @@ export default class TbjsonHandler {
 	}
 }
 
-Handler.inject = (proto, propertyName, descriptor) => {
+/**
+ * Decorator
+ * 
+ * Handle a function and emit events.
+ * Injects a handler into the first argument.
+ */
+TbjsonHandler.inject = (proto, propertyName, descriptor) => {
 
 	if (!isPropertyFunction(proto, propertyName, descriptor)) {
 		throw new Error('[tbjson-handler] "inject()" must be passed a prototype function');
@@ -220,7 +262,16 @@ Handler.inject = (proto, propertyName, descriptor) => {
 	};
 };
 
-Handler.injectType = (type, objArgIndex) => {
+/**
+ * Decorator
+ * 
+ * Handle a function and emit events.
+ * Injects a handler into the first argument or specified argument index.
+ * 
+ * @param { string } type - type of event to propagate
+ * @param { number } [objArgIndex] - an argument index to use as the subject for the parent handler injection
+ */
+TbjsonHandler.injectType = (type, objArgIndex) => {
 	
 	if (typeof type != 'string' || (objArgIndex !== undefined && (!Number.isFinite(objArgIndex) || objArgIndex < 0))) {
 		throw new Error('[tbjson-handler] "injectType()" must be passed a type and an optional argument index');
@@ -249,7 +300,12 @@ Handler.injectType = (type, objArgIndex) => {
 	};
 };
 
-Handler.handle = (proto, propertyName, descriptor) => {
+/**
+ * Decorator
+ * 
+ * Handle a function and emit events.
+ */
+TbjsonHandler.handle = (proto, propertyName, descriptor) => {
 
 	if (!isPropertyFunction(proto, propertyName, descriptor)) {
 		throw new Error('[tbjson-handler] "handle()" must be passed a prototype function');
@@ -267,10 +323,17 @@ Handler.handle = (proto, propertyName, descriptor) => {
 	};
 };
 
-Handler.handleType = (type, objArgIndex) => {
+/**
+ * Decorator
+ * 
+ * Handle a function and emit events.
+ * 
+ * @param { string } type - type of event to propagate
+ */
+TbjsonHandler.handleType = (type) => {
 
-	if (typeof type != 'string' || (objArgIndex !== undefined && (!Number.isFinite(objArgIndex) || objArgIndex < 0))) {
-		throw new Error('[tbjson-handler] "handleType()" must be passed a type and an optional argument index');
+	if (typeof type != 'string') {
+		throw new Error('[tbjson-handler] "handleType()" must be passed a type');
 	}
 	
 	return (proto, propertyName, descriptor) => {
@@ -292,7 +355,13 @@ Handler.handleType = (type, objArgIndex) => {
 	};
 };
 
-Handler.handleProp = (proto, propertyName, descriptor) => {
+/**
+ * Decorator
+ * 
+ * Handle property changes by removing this property and replacing it with a getter and setter.
+ * Adds the underlying property to a symbol.
+ */
+TbjsonHandler.handleProp = (proto, propertyName, descriptor) => {
 
 	if (!isProperty(proto, propertyName, descriptor)) {
 		throw new Error('[tbjson-handler] "handleProp()" must be passed a prototype property');
@@ -326,9 +395,15 @@ Handler.handleProp = (proto, propertyName, descriptor) => {
 
 /* internal */
 
+/**
+ * TbjsonHandlerEvent
+ * 
+ * Source event class.
+ */
 class TbjsonHandlerEvent {
 
 	cancelled = false;
+	objs = [];
 
 	constructor(obj, type, property, value) {
 
@@ -346,8 +421,14 @@ class TbjsonHandlerEvent {
 	}
 }
 
+/**
+ * Walk an object's properties and inject if a TBJSON type is found.
+ * 
+ * @param { object } obj - object to recursively search 
+ * @param { object } parentHandler - parent handler to inject 
+ */
 function walk(obj, parentHandler) {
-	if (obj && typeof obj == 'object') {
+	if (obj && typeof obj == 'object' && !ArrayBuffer.isView(obj)) {
 
 		// array
 		if (Array.isArray(obj)) {
@@ -372,6 +453,46 @@ function walk(obj, parentHandler) {
 	}
 }
 
+/**
+ * Get all handles from a TBJSON classed prototype.
+ * 
+ * @param { function } prototype - prototype to check for parent of 
+ */
+function fetchHandles(obj) {
+	if (obj && typeof obj == 'object' && obj.constructor.tbjson) {
+
+		let handles = obj.constructor.tbjson.handles;
+
+		for (let parent = obj.constructor; parent = getParent(parent);) {
+
+			if (!parent.tbjson) { break; }
+
+			if (parent.tbjson.handles) {
+				handles = Object.assign({}, parent.tbjson.handles, handles);
+			}
+		}
+
+		return handles;
+	}
+}
+
+/**
+ * Return the parent of a prototype.
+ * 
+ * @param { function } prototype - prototype to check for parent of 
+ */
+function getParent(prototype) {
+	let parent = prototype ? Object.getPrototypeOf(prototype) : null;
+	return (parent && parent.name) ? parent : null;
+}
+
+/**
+ * Determine if a decorator passed function is a protoype function.
+ * 
+ * @param { function } proto - function's prototype 
+ * @param { string } propertyName - function's property's name 
+ * @param { object } descriptor - function's descriptor 
+ */
 function isPropertyFunction(proto, propertyName, descriptor) {
 	return (
 		typeof proto == 'object' &&
@@ -381,6 +502,13 @@ function isPropertyFunction(proto, propertyName, descriptor) {
 	);
 }
 
+/**
+ * Determine if a decorator passed property is a protoype property.
+ * 
+ * @param { function } proto - property's prototype 
+ * @param { string } propertyName - property's name 
+ * @param { object } descriptor - property's descriptor 
+ */
 function isProperty(proto, propertyName, descriptor) {
 	return (
 		typeof proto == 'object' &&

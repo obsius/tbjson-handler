@@ -1,6 +1,6 @@
 {
 	"name": "tbjson-handler",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "A TBJSON handler for event propagation.",
 	"homepage": "https://github.com/obsius/tbjson-handler",
 	"author": "Jeff Seaman <mr.jeffrey.seaman@gmail.com> (https://www.ngc6822.com)",
@@ -9,6 +9,9 @@
 	"scripts": {
 		"prepare": "rollup -c",
 		"start": "nodemon --inspect dev.js --exec babel-node"
+	},
+	"dependencies": {
+		"typed-binary-json": "^1.15.1"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.8.4",
