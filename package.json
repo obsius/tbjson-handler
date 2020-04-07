@@ -1,6 +1,6 @@
 {
 	"name": "tbjson-handler",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "A TBJSON handler for event propagation.",
 	"homepage": "https://github.com/obsius/tbjson-handler",
 	"author": "Jeff Seaman <mr.jeffrey.seaman@gmail.com> (https://www.ngc6822.com)",
