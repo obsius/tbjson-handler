@@ -2,10 +2,11 @@ import babel from 'rollup-plugin-babel';
 
 export default {
 	external: [
-		'tbjson'
+		'typed-binary-json'
 	],
 	input: 'src/TbjsonHandler.js',
 	output: {
+		exports: 'auto',
 		file: 'lib/index.js',
 		format: 'cjs'
 	},
